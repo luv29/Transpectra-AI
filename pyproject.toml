@@ -16,3 +16,11 @@ dependencies = [
     "uvicorn>=0.34.2",
 ]
 
+[tool.taskipy.tasks]
+dev = "uvicorn app.main:app --reload --host localhost --port 8000"
+
+[dependency-groups]
+dev = [
+    "taskipy>=1.14.1",
+]
+
