@@ -34,10 +34,15 @@ months = [
     'Aug-2024', 'Sep-2024', 'Oct-2024', 'Nov-2024', 'Dec-2024'
 ]
 
+dataset = pd.read_csv('app/models/dataset.csv')
+
 @router.post("/predict_stock")
 def predict_stock(input_data: ProductInput):
     try:
-        data = pd.DataFrame(input_data.products)
+        print(input_data.products)
+        data = dataset[dataset[dataset.columns[0]].isin(input_data.products)]
+
+        # data = pd.DataFrame(input_data.products)
         data_cat = data.select_dtypes(include=['object'])
         data_num = data.select_dtypes(exclude=['object'])
         data_cat_encoded = encoder.transform(data_cat)
