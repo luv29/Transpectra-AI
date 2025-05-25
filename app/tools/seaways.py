@@ -1,13 +1,42 @@
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from typing import Dict
+from mcp_server import mcp
 
+@mcp.tool()
 def get_seaway_route_info(
     source_port: str,
     destination_port: str,
     cargo_tonnage: float = 1000,
-    freight_rate_per_tonne_km: float = 0.05  # in USD
+    freight_rate_per_tonne_km: float = 0.05
 ) -> Dict:
+    """
+    Estimate seaway shipping details including distance, carbon emissions, and freight cost.
+
+    This tool calculates the estimated seaway route information between two global ports using their geolocations.
+    It computes:
+    - The straight-line distance (in kilometers) between the ports
+    - The estimated CO₂ emissions in kilograms based on the cargo tonnage (using a rough factor of 0.02 kg CO₂ per tonne-km)
+    - The estimated shipping price in USD based on the tonnage and freight rate per tonne-km
+
+    Args:
+        source_port: Name of the source port (e.g. "Mundra Port, India")
+        destination_port: Name of the destination port (e.g. "Port of Rotterdam, Netherlands")
+        cargo_tonnage: The total cargo weight to be shipped, in metric tonnes (default is 1000 tonnes)
+        freight_rate_per_tonne_km: Freight cost rate in USD per tonne-km (default is 0.05 USD)
+
+    Returns:
+        A dictionary containing:
+            - source_coordinates (lat, lon)
+            - destination_coordinates (lat, lon)
+            - estimated_distance_km
+            - estimated_emission_kg
+            - assumed_cargo_tonnage
+            - estimated_price_usd
+            - freight_rate_per_tonne_km
+
+        Or an error message if geocoding fails.
+    """
     geolocator = Nominatim(user_agent="seaway_route_calculator")
 
     try:
@@ -20,13 +49,8 @@ def get_seaway_route_info(
         src_coords = (src_location.latitude, src_location.longitude)
         dst_coords = (dst_location.latitude, dst_location.longitude)
 
-        # Approximate seaway distance (straight-line)
         distance_km = geodesic(src_coords, dst_coords).km
-
-        # Estimate emissions (kg CO₂)
         estimated_emission_kg = round(distance_km * cargo_tonnage * 0.02, 2)
-
-        # Estimate shipping price
         estimated_price_usd = round(distance_km * cargo_tonnage * freight_rate_per_tonne_km, 2)
 
         return {

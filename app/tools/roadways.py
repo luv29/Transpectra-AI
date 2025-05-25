@@ -1,31 +1,60 @@
 import openrouteservice
 from typing import Dict, Any
+from mcp_server import mcp
 
 # OpenRouteService client
 client = openrouteservice.Client(key="5b3ce3597851110001cf624814f4cd46257b4262a1cefd4eda0ac21f")
 
-def get_route_info(source: str, destination: str) -> Dict[str, Any]:
+@mcp.tool()
+async def get_route_info(source: str, destination: str) -> Dict[str, Any]:
+    """Get comprehensive driving route information between two locations including turn-by-turn directions.
+    
+    This tool uses OpenRouteService API to find the optimal driving route between any two locations worldwide.
+    It provides detailed navigation instructions, distance, estimated travel time, and environmental impact data.
+    The tool automatically geocodes location names to coordinates and calculates the best driving route.
+    
+    Args:
+        source: Starting location name or address. Can be a landmark, full address, city name, or point of interest.
+                Examples: "India Gate, New Delhi", "123 Main Street, New York", "Paris, France", "Times Square"
+        destination: Ending location name or address. Can be a landmark, full address, city name, or point of interest.
+                    Examples: "Surat, Gujarat", "Los Angeles International Airport", "Big Ben, London", "Central Park"
+    
+    Returns:
+        A dictionary containing comprehensive route information with the following keys:
+        - route_steps: List of strings with turn-by-turn navigation instructions in order
+        - total_distance_km: Total driving distance in kilometers (float, rounded to 2 decimal places)
+        - estimated_time_min: Estimated driving time in minutes (float, rounded to 2 decimal places)
+        - estimated_emission_kg: Estimated CO2 emissions for the trip in kilograms (float, based on average car emissions of 0.192 kg/km)
+        
+        If an error occurs (invalid locations, network issues, etc.), returns:
+        - error: String description of the error that occurred
+    
+    Note: This tool requires internet connectivity and uses OpenRouteService's geocoding and routing services.
+    Travel times are estimates based on typical driving conditions and may vary due to traffic, weather, or road conditions.
+    """
     try:
-        # Get coordinates
+        # Get coordinates using OpenRouteService geocoding
         src_coords = client.pelias_search(source)["features"][0]["geometry"]["coordinates"]
         dst_coords = client.pelias_search(destination)["features"][0]["geometry"]["coordinates"]
 
-        # Get route
+        # Get optimal driving route
         route = client.directions(
             coordinates=[src_coords, dst_coords],
             profile='driving-car',
             format='geojson'
         )
 
+        # Extract route segment data
         segment = route['features'][0]['properties']['segments'][0]
         distance_m = segment['distance']
         duration_s = segment['duration']
 
-        # Step-by-step instructions
+        # Extract step-by-step navigation instructions
         steps = segment.get('steps', [])
         instructions = [step['instruction'] for step in steps]
 
-        # Calculate carbon emission (car average: 0.192 kg/km)
+        # Calculate environmental impact
+        # Using average car emission factor: 0.192 kg CO2 per kilometer
         distance_km = distance_m / 1000
         emission_kg = round(distance_km * 0.192, 2)
 
@@ -36,20 +65,23 @@ def get_route_info(source: str, destination: str) -> Dict[str, Any]:
             "estimated_emission_kg": emission_kg
         }
 
+    except IndexError:
+        return {"error": "Could not find one or both locations. Please check the spelling and try again with more specific addresses."}
+    except openrouteservice.exceptions.ApiError as e:
+        return {"error": f"OpenRouteService API error: {str(e)}"}
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Unexpected error occurred: {str(e)}"}
 
-# Test
-if __name__ == '__main__':
-    result = get_route_info("India Gate, New Delhi", "surat")
-
-    # Output
-    if "error" not in result:
-        print("Route Steps:")
-        for step in result["route_steps"]:
-            print("-", step)
-        print("Total Distance (km):", result["total_distance_km"])
-        print("Estimated Time (min):", result["estimated_time_min"])
-        print("Estimated CO₂ Emission (kg):", result["estimated_emission_kg"])
-    else:
-        print("Error:", result["error"])
+# Example usage (commented out for MCP deployment):
+# if __name__ == '__main__':
+#     result = await get_route_info("India Gate, New Delhi", "surat")
+#     
+#     if "error" not in result:
+#         print("Route Steps:")
+#         for step in result["route_steps"]:
+#             print("-", step)
+#         print("Total Distance (km):", result["total_distance_km"])
+#         print("Estimated Time (min):", result["estimated_time_min"])
+#         print("Estimated CO₂ Emission (kg):", result["estimated_emission_kg"])
+#     else:
+#         print("Error:", result["error"])

@@ -3,41 +3,59 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-import time
 from geopy.distance import geodesic
-
-# Static airport code to coordinates (for demo)
-AIRPORT_COORDS = {
-    'DEL': (28.5562, 77.1000),  # Delhi
-    'KNU': (26.4042, 80.4101),  # Kanpur
-    'BOM': (19.0896, 72.8656),  # Mumbai
-    'BLR': (13.1986, 77.7066),  # Bengaluru
-    'MAA': (12.9941, 80.1709),  # Chennai
-    # Add more as needed
-}
+from typing import List, Dict
+import time
+from mcp_server import mcp
 
 def estimate_emission_kgs(distance_km: float) -> float:
     """
-    Estimate CO₂ emissions using average value: 90g CO₂/passenger-km for flights.
+    Estimate CO₂ emissions using the average value of 90g CO₂ per passenger-km for flights.
     """
     return round(distance_km * 0.09, 2)
 
-def estimate_distance_km(src: str, dst: str) -> float:
-    src_coords = AIRPORT_COORDS.get(src.upper())
-    dst_coords = AIRPORT_COORDS.get(dst.upper())
-    if not src_coords or not dst_coords:
-        return 0.0
+def estimate_distance_km(src_coords: tuple, dst_coords: tuple) -> float:
     return round(geodesic(src_coords, dst_coords).km, 2)
 
-def scrape_flight_data(source: str, destination: str, date: str = None):
+@mcp.tool()
+def scrape_flight_data(
+    source_code: str,
+    destination_code: str,
+    source_lat: float,
+    source_lng: float,
+    dest_lat: float,
+    dest_lng: float,
+    date: str = None
+) -> List[Dict]:
+    """
+    Scrape flight route information between two airports and estimate carbon emissions.
+
+    This tool scrapes flight options from CheapFlights between two airports on a given date. It also computes:
+    - Straight-line distance in kilometers
+    - Estimated CO₂ emissions in kilograms based on 90g/passenger-km
+
+    Args:
+        source_code: IATA airport code of source (e.g., 'DEL' for Delhi)
+        destination_code: IATA airport code of destination (e.g., 'BOM' for Mumbai)
+        source_lat: Latitude of the source airport
+        source_lng: Longitude of the source airport
+        dest_lat: Latitude of the destination airport
+        dest_lng: Longitude of the destination airport
+        date: Optional travel date in YYYY-MM-DD format (defaults to 7 days from today)
+
+    Returns:
+        A list of flights with details including duration, price, stops, distance, and CO₂ emissions.
+    """
     if not date:
         date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
 
-    url = f"https://www.in.cheapflights.com/flight-search/{source.upper()}-{destination.upper()}/{date}?sort=bestflight_a"
+    url = f"https://www.in.cheapflights.com/flight-search/{source_code.upper()}-{destination_code.upper()}/{date}?sort=bestflight_a"
     print(url)
 
     options = Options()
-    options.add_argument("--start-maximized")  # Maximize browser
+    options.add_argument("--headless")  # run in headless mode
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(options=options)
     driver.get(url)
 
@@ -47,7 +65,7 @@ def scrape_flight_data(source: str, destination: str, date: str = None):
     print(f"{len(elems)} flight items found")
 
     results = []
-    distance = estimate_distance_km(source, destination)
+    distance = estimate_distance_km((source_lat, source_lng), (dest_lat, dest_lng))
     emission = estimate_emission_kgs(distance)
 
     for elem in elems:
@@ -60,15 +78,12 @@ def scrape_flight_data(source: str, destination: str, date: str = None):
         duration = soup.find_all('div', attrs={'class': 'vmXl-mod-variant-default'})
         if len(duration) < 2:
             continue
-        content['Expected Time'] = duration[1].get_text()
+        content['expected_time'] = duration[1].get_text()
 
         # Price
         price = soup.find('span', attrs={'class': 'c_f8N-price-text'}) or \
                 soup.find('div', attrs={'class': 'e2GB-price-text'})
-        if price:
-            content['price'] = price.get_text()
-        else:
-            content['price'] = "N/A"
+        content['price'] = price.get_text() if price else "N/A"
 
         # Stops
         stops = soup.find_all('div', attrs={'class': 'c_cgF-mod-variant-full-airport'})
