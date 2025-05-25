@@ -83,6 +83,7 @@ def scrape_flight_data(source: str, destination: str, date: str = None):
     driver.quit()
     return results
 
-flights = scrape_flight_data("DEL", "BOM")
-for flight in flights:
-    print(flight)
+if __name__ == '__main__':
+    flights = scrape_flight_data("DEL", "BOM")
+    for flight in flights:
+        print(flight)

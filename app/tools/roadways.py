@@ -40,15 +40,16 @@ def get_route_info(source: str, destination: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 # Test
-result = get_route_info("India Gate, New Delhi", "surat")
+if __name__ == '__main__':
+    result = get_route_info("India Gate, New Delhi", "surat")
 
-# Output
-if "error" not in result:
-    print("Route Steps:")
-    for step in result["route_steps"]:
-        print("-", step)
-    print("Total Distance (km):", result["total_distance_km"])
-    print("Estimated Time (min):", result["estimated_time_min"])
-    print("Estimated CO₂ Emission (kg):", result["estimated_emission_kg"])
-else:
-    print("Error:", result["error"])
+    # Output
+    if "error" not in result:
+        print("Route Steps:")
+        for step in result["route_steps"]:
+            print("-", step)
+        print("Total Distance (km):", result["total_distance_km"])
+        print("Estimated Time (min):", result["estimated_time_min"])
+        print("Estimated CO₂ Emission (kg):", result["estimated_emission_kg"])
+    else:
+        print("Error:", result["error"])
