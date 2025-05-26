@@ -34,7 +34,6 @@ async def get_road_data(source: str, destination: str) -> Dict[str, Any]:
     Travel times are estimates based on typical driving conditions and may vary due to traffic, weather, or road conditions.
     """
     print("Execute roadways tool")
-    print({sorted, destination})
 
     try:
         # Get coordinates using OpenRouteService geocoding

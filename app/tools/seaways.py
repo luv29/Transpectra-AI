@@ -7,7 +7,7 @@ from typing import Dict
 def get_seaways_route_info(
     source_port: str,
     destination_port: str,
-    cargo_tonnage: float = 1000,
+    cargo_tonnage: float = 10,
     freight_rate_per_tonne_km: float = 0.05
 ) -> Dict:
     """

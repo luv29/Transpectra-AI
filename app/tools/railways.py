@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from datetime import datetime
+from datetime import datetime, timedelta
 from geopy.distance import geodesic
 import time
 import asyncio
@@ -47,7 +47,7 @@ async def get_train_data(
     print("Executing railways tool") 
     # print({source, destination, source_lat, source_lng, dest_lat, dest_lng})
     
-    date = datetime.now().strftime("%d-%m-%Y")
+    date = (datetime.now() + timedelta(days=7)).strftime("%d-%m-%Y")
     url = f"https://www.trainman.in/trains/{source}/{destination}?date={date}&class=ALL&quota=GN&fcs_opt=false"
     print(url)
 
