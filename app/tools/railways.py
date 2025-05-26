@@ -8,9 +8,7 @@ from datetime import datetime, timedelta
 from geopy.distance import geodesic
 import time
 import asyncio
-# from mcp_server import mcp
 
-# @mcp.tool()
 async def get_train_data(
     source: str, 
     destination: str, 
@@ -101,7 +99,6 @@ async def get_train_data(
 
     driver.quit()
     return result
-
 
 def get_railways_route_info(
         source: str, 

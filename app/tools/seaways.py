@@ -1,9 +1,7 @@
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from typing import Dict
-# from mcp_server import mcp
 
-# @mcp.tool()
 def get_seaways_route_info(
     source_port: str,
     destination_port: str,

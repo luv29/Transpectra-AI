@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from geopy.distance import geodesic
 from typing import List, Dict
 import time
-# from mcp_server import mcp
 
 def estimate_emission_kgs(distance_km: float) -> float:
     """
@@ -17,7 +16,6 @@ def estimate_emission_kgs(distance_km: float) -> float:
 def estimate_distance_km(src_coords: tuple, dst_coords: tuple) -> float:
     return round(geodesic(src_coords, dst_coords).km, 2)
 
-# @mcp.tool()
 def get_airways_route_info(
     source_code: str,
     destination_code: str,

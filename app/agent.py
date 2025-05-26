@@ -1,17 +1,17 @@
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from airways import get_airways_route_info
-from roadways import get_roadways_route_info
-from railways import get_railways_route_info
-from seaways import get_seaways_route_info
-from dotenv import load_dotenv
+from app.tools.airways import get_airways_route_info
+from app.tools.roadways import get_roadways_route_info
+from app.tools.railways import get_railways_route_info
+from app.tools.seaways import get_seaways_route_info
+# from dotenv import load_dotenv
 from langgraph.graph import MessagesState, StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 import os
 import json
 
-load_dotenv()
+# load_dotenv()
 
 tools = [
     get_airways_route_info,
@@ -113,13 +113,3 @@ builder.add_conditional_edges("planner", tools_condition)
 builder.add_edge("tools", "summarizer")
 
 graph = builder.compile()
-
-messages = [
-    HumanMessage(content="Give me 3 best ways to ship cargos from Pune to California, using airways, railways, seaways, or roadways. Consider cost, time, and carbon emission. Don't give direct routes, you may give routes like first go from pune to delhi by train, then delhi to california by flight, or first go from pune to mumbai by road, then mumbai to california by ship or something like that. For each route i want Total time, total cost (INR), total carbon emission.")
-]
-
-final_state = graph.invoke({"messages": messages})
-
-final_message = final_state["messages"][-1]
-print("=== FINAL JSON OUTPUT ===")
-print(final_message.content)

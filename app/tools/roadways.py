@@ -1,12 +1,10 @@
 import openrouteservice
 from typing import Dict, Any
 import asyncio
-# from mcp_server import mcp
+import os
 
-# OpenRouteService client
-client = openrouteservice.Client(key="5b3ce3597851110001cf624814f4cd46257b4262a1cefd4eda0ac21f")
+client = openrouteservice.Client(key=os.getenv("OPEN_ROUTE_SERVICES_API_KEY"))
 
-# @mcp.tool()
 async def get_road_data(source: str, destination: str) -> Dict[str, Any]:
     """Get comprehensive driving route information between two locations including turn-by-turn directions.
     
