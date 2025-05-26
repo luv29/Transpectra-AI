@@ -9,10 +9,10 @@ from langgraph.graph import MessagesState, StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from langchain_core.messages import HumanMessage, SystemMessage
 import os
+import json
 
 load_dotenv()
 
-# Define tools
 tools = [
     get_airways_route_info,
     get_railways_route_info,
@@ -20,7 +20,6 @@ tools = [
     get_seaways_route_info
 ]
 
-# Define LLMs
 planner_llm = ChatOpenAI(model='gpt-4o-mini')
 final_llm = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash",
@@ -29,39 +28,98 @@ final_llm = ChatGoogleGenerativeAI(
 
 planner_llm_with_tools = planner_llm.bind_tools(tools)
 
-# System message for planning step
 sys_msg = SystemMessage(content="You are a travel planner that uses tools to gather info, then another assistant will summarize it.")
+
+summarizer_sys_msg = SystemMessage(content="""You are a travel route summarizer.
+
+You must return your response as a valid JSON array containing exactly 3 route options. Each route should be optimized for different priorities (cost, time, carbon emissions).
+
+Format each route as:
+[
+    {
+        "total_cost": <number in INR>,
+        "total_time": "<time with units>",
+        "total_carbon_emission": "<emission with units>",                           
+        "feature": "<explanation of why this route is chosen>",
+        "route": [
+            {
+                "from": "<origin city>",
+                "to": "<destination city>",
+                "distance": "<distance with units>",
+                "by": "<transport mode: train/truck/flight/ship>"
+            }
+        ]
+    }
+]
+
+Important:
+- Consider multi-modal routes (e.g., Pune→Mumbai by road, then Mumbai→California by ship)
+- Return ONLY the JSON array, no additional text""")
 
 # Stage 1: Tool calling
 def planner_node(state: MessagesState):
     return {"messages": [planner_llm_with_tools.invoke([sys_msg] + state["messages"])]}
 
-# Stage 2: Gemini final summarization
 def summarizer_node(state: MessagesState):
-    return {"messages": [final_llm.invoke(state["messages"])]}
+    all_messages = [summarizer_sys_msg] + state["messages"]
+    
+    response = final_llm.invoke(all_messages)
+    
+    try:
+        json_content = response.content.strip()
+        
+        if json_content.startswith('```json'):
+            json_content = json_content.replace('```json', '').replace('```', '').strip()
+        elif json_content.startswith('```'):
+            json_content = json_content.replace('```', '').strip()
+        
+        parsed_json = json.loads(json_content)
+        
+        if not isinstance(parsed_json, list) or len(parsed_json) != 3:
+            raise ValueError("Response must be a JSON array with exactly 3 routes")
+        
+        for i, route in enumerate(parsed_json):
+            required_fields = ['total_cost', 'total_time', 'total_carbon_emission', 'route']
+            for field in required_fields:
+                if field not in route:
+                    raise ValueError(f"Route {i+1} missing required field: {field}")
+        
+        response.content = json.dumps(parsed_json, indent=2)
+        
+    except (json.JSONDecodeError, ValueError) as e:
+        error_response = [{
+            "total_cost": 0,
+            "total_time": "Error",
+            "total_carbon_emission": "Error",
+            "route": [{
+                "from": "Error",
+                "to": "Error", 
+                "distance": "Error",
+                "by": "Error",
+                "feature": f"JSON parsing failed: {str(e)}"
+            }]
+        }]
+        response.content = json.dumps(error_response, indent=2)
+    
+    return {"messages": [response]}
 
-# Build the graph
 builder = StateGraph(MessagesState)
 builder.add_node("planner", planner_node)
 builder.add_node("tools", ToolNode(tools))
 builder.add_node("summarizer", summarizer_node)
 
-# Control flow
 builder.add_edge(START, "planner")
 builder.add_conditional_edges("planner", tools_condition)
 builder.add_edge("tools", "summarizer")
 
-# Compile the graph
 graph = builder.compile()
 
-# Input query
 messages = [
-    HumanMessage(content="Give me 3 best ways to ship cargos from Pune to California, using airways, railways, seaways, or roadways. Consider cost, time, and carbon emission. Don't give direct routes, you may give routes like first go from pune to delhi by train, then delhi to california by flight, or first go from pune to mumbai by road, then mumbai to california by ship or something like that. For each route i want Total time, total cost (INR), total carbon emission railway station of pune if 'pune-jn-pune'.")
+    HumanMessage(content="Give me 3 best ways to ship cargos from Pune to California, using airways, railways, seaways, or roadways. Consider cost, time, and carbon emission. Don't give direct routes, you may give routes like first go from pune to delhi by train, then delhi to california by flight, or first go from pune to mumbai by road, then mumbai to california by ship or something like that. For each route i want Total time, total cost (INR), total carbon emission.")
 ]
 
-# Run the graph
 final_state = graph.invoke({"messages": messages})
 
-# Print results
-for m in final_state["messages"]:
-    m.pretty_print()
+final_message = final_state["messages"][-1]
+print("=== FINAL JSON OUTPUT ===")
+print(final_message.content)
