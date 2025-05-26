@@ -9,6 +9,7 @@ dependencies = [
     "chromedriver-autoinstaller>=0.6.4",
     "fastapi>=0.115.12",
     "geopy>=2.4.1",
+    "google-generativeai>=0.8.5",
     "googlemaps>=4.10.0",
     "httpx>=0.28.1",
     "joblib>=1.5.0",

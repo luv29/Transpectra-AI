@@ -1,12 +1,13 @@
 import openrouteservice
 from typing import Dict, Any
-from mcp_server import mcp
+import asyncio
+# from mcp_server import mcp
 
 # OpenRouteService client
 client = openrouteservice.Client(key="5b3ce3597851110001cf624814f4cd46257b4262a1cefd4eda0ac21f")
 
-@mcp.tool()
-async def get_route_info(source: str, destination: str) -> Dict[str, Any]:
+# @mcp.tool()
+async def get_road_data(source: str, destination: str) -> Dict[str, Any]:
     """Get comprehensive driving route information between two locations including turn-by-turn directions.
     
     This tool uses OpenRouteService API to find the optimal driving route between any two locations worldwide.
@@ -17,7 +18,7 @@ async def get_route_info(source: str, destination: str) -> Dict[str, Any]:
         source: Starting location name or address. Can be a landmark, full address, city name, or point of interest.
                 Examples: "India Gate, New Delhi", "123 Main Street, New York", "Paris, France", "Times Square"
         destination: Ending location name or address. Can be a landmark, full address, city name, or point of interest.
-                    Examples: "Surat, Gujarat", "Los Angeles International Airport", "Big Ben, London", "Central Park"
+                    Examples: "Surat, Gujarat", "Los Angeles International Airport", "Big Ben, London"
     
     Returns:
         A dictionary containing comprehensive route information with the following keys:
@@ -32,6 +33,9 @@ async def get_route_info(source: str, destination: str) -> Dict[str, Any]:
     Note: This tool requires internet connectivity and uses OpenRouteService's geocoding and routing services.
     Travel times are estimates based on typical driving conditions and may vary due to traffic, weather, or road conditions.
     """
+    print("Execute roadways tool")
+    print({sorted, destination})
+
     try:
         # Get coordinates using OpenRouteService geocoding
         src_coords = client.pelias_search(source)["features"][0]["geometry"]["coordinates"]
@@ -72,16 +76,28 @@ async def get_route_info(source: str, destination: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Unexpected error occurred: {str(e)}"}
 
-# Example usage (commented out for MCP deployment):
-# if __name__ == '__main__':
-#     result = await get_route_info("India Gate, New Delhi", "surat")
-#     
-#     if "error" not in result:
-#         print("Route Steps:")
-#         for step in result["route_steps"]:
-#             print("-", step)
-#         print("Total Distance (km):", result["total_distance_km"])
-#         print("Estimated Time (min):", result["estimated_time_min"])
-#         print("Estimated CO₂ Emission (kg):", result["estimated_emission_kg"])
-#     else:
-#         print("Error:", result["error"])
+def get_roadways_route_info(source: str, destination: str) -> Dict[str, Any]:
+    """Get comprehensive driving route information between two locations including turn-by-turn directions.
+    
+    This tool uses OpenRouteService API to find the optimal driving route between any two locations worldwide.
+    It provides detailed navigation instructions, distance, estimated travel time, and environmental impact data.
+    The tool automatically geocodes location names to coordinates and calculates the best driving route.
+    
+    Args:
+        source: Starting location name or address. Can be a landmark, full address, city name, or point of interest. Examples: "India Gate, New Delhi", "123 Main Street, New York", "Paris, France", "Times Square"
+        destination: Ending location name or address. Can be a landmark, full address, city name, or point of interest. Examples: "Surat, Gujarat", "Los Angeles International Airport", "Big Ben, London"
+    
+    Returns:
+        A dictionary containing comprehensive route information with the following keys:
+        - route_steps: List of strings with turn-by-turn navigation instructions in order
+        - total_distance_km: Total driving distance in kilometers (float, rounded to 2 decimal places)
+        - estimated_time_min: Estimated driving time in minutes (float, rounded to 2 decimal places)
+        - estimated_emission_kg: Estimated CO2 emissions for the trip in kilograms (float, based on average car emissions of 0.192 kg/km)
+        
+        If an error occurs (invalid locations, network issues, etc.), returns:
+        - error: String description of the error that occurred
+    
+    Note: This tool requires internet connectivity and uses OpenRouteService's geocoding and routing services.
+    Travel times are estimates based on typical driving conditions and may vary due to traffic, weather, or road conditions.
+    """
+    asyncio.run(get_road_data(source, destination))

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from geopy.distance import geodesic
 from typing import List, Dict
 import time
-from mcp_server import mcp
+# from mcp_server import mcp
 
 def estimate_emission_kgs(distance_km: float) -> float:
     """
@@ -17,15 +17,14 @@ def estimate_emission_kgs(distance_km: float) -> float:
 def estimate_distance_km(src_coords: tuple, dst_coords: tuple) -> float:
     return round(geodesic(src_coords, dst_coords).km, 2)
 
-@mcp.tool()
-def scrape_flight_data(
+# @mcp.tool()
+def get_airways_route_info(
     source_code: str,
     destination_code: str,
     source_lat: float,
     source_lng: float,
     dest_lat: float,
-    dest_lng: float,
-    date: str = None
+    dest_lng: float
 ) -> List[Dict]:
     """
     Scrape flight route information between two airports and estimate carbon emissions.
@@ -41,21 +40,21 @@ def scrape_flight_data(
         source_lng: Longitude of the source airport
         dest_lat: Latitude of the destination airport
         dest_lng: Longitude of the destination airport
-        date: Optional travel date in YYYY-MM-DD format (defaults to 7 days from today)
 
     Returns:
         A list of flights with details including duration, price, stops, distance, and CO₂ emissions.
     """
-    if not date:
-        date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+    
+    print("Executing airways tool") 
+    # print({source_code, destination_code, source_lat, source_lng, dest_lat, dest_lnge})
+
+    date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
 
     url = f"https://www.in.cheapflights.com/flight-search/{source_code.upper()}-{destination_code.upper()}/{date}?sort=bestflight_a"
     print(url)
 
     options = Options()
-    options.add_argument("--headless")  # run in headless mode
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument('--start-maximized')
     driver = webdriver.Chrome(options=options)
     driver.get(url)
 
@@ -97,8 +96,3 @@ def scrape_flight_data(
 
     driver.quit()
     return results
-
-if __name__ == '__main__':
-    flights = scrape_flight_data("DEL", "BOM")
-    for flight in flights:
-        print(flight)

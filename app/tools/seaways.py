@@ -1,10 +1,10 @@
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from typing import Dict
-from mcp_server import mcp
+# from mcp_server import mcp
 
-@mcp.tool()
-def get_seaway_route_info(
+# @mcp.tool()
+def get_seaways_route_info(
     source_port: str,
     destination_port: str,
     cargo_tonnage: float = 1000,
@@ -37,6 +37,9 @@ def get_seaway_route_info(
 
         Or an error message if geocoding fails.
     """
+    print("Executing seasways tool")
+    # print({source_port, destination_port, freight_rate_per_tonne_km, cargo_tonnage})
+
     geolocator = Nominatim(user_agent="seaway_route_calculator")
 
     try:
@@ -66,13 +69,3 @@ def get_seaway_route_info(
     except Exception as e:
         return {"error": str(e)}
 
-# Example usage
-if __name__ == "__main__":
-    result = get_seaway_route_info("Mundra Port, India", "Port of Rotterdam, Netherlands", cargo_tonnage=2000)
-
-    if "error" not in result:
-        print("Distance (km):", result["estimated_distance_km"])
-        print("CO₂ Emission (kg):", result["estimated_emission_kg"])
-        print("Estimated Shipping Price (USD):", result["estimated_price_usd"])
-    else:
-        print("Error:", result["error"])
