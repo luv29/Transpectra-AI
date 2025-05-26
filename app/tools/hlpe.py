@@ -47,7 +47,7 @@ builder.add_edge("tools", "summarizer")
 graph = builder.compile()
 
 # Input
-messages = [HumanMessage(content="Give me 3 best ways to go from Delhi to Mumbai, using airways, railways, seaways, or roadways. Consider cost, time, and carbon emission.")]
+messages = [HumanMessage(content="Give me 3 best ways to go from Pune to California, using airways, railways, seaways, or roadways. Consider cost, time, and carbon emission. Don't give direct routes, you may give routes like first go from pune to delhi by train, then delhi to california by flight, or first go from pune to mumbai by road, then mumbai to california by ship or something like that.")]
 
 # Run
 final_state = graph.invoke({"messages": messages})
