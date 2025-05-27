@@ -1,0 +1,9 @@
+version: '1.1'
+
+services:
+  transpectra-ai:
+    image: luv29/transpectra-ai
+    ports:
+      - 8000:8000
+    env_file:
+      - .env

@@ -53,10 +53,11 @@ def get_airways_route_info(
 
     options = Options()
     options.add_argument('--start-maximized')
+
     driver = webdriver.Chrome(options=options)
     driver.get(url)
 
-    time.sleep(8)  # Wait for content to load
+    time.sleep(15)  # Wait for content to load
 
     elems = driver.find_elements(By.CLASS_NAME, 'Fxw9-result-item-container')
     print(f"{len(elems)} flight items found")
