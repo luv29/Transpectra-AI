@@ -54,7 +54,20 @@ Format each route as:
 
 Important:
 - Consider multi-modal routes (e.g., Pune→Mumbai by road, then Mumbai→California by ship)
-- Return ONLY the JSON array, no additional text""")
+- Return ONLY the JSON array, no additional text
+
+- Railway Station CODES for ixigo, Pass exactly this names else tool call will fail:
+    Pune - "PUNE"
+    Delhi / New Delhi - "NDLS"
+    Mumbai all stations - "LTT"
+    Surat - "ST"
+    Kolkata -"HWH"
+    Chennai - "MAS"
+    Vadodra - "BRC"
+    Chandigarh - "CDG"
+    Ahmedabad - "ADI"
+    Bengaluru - "SBC"
+""")
 
 # Stage 1: Tool calling
 def planner_node(state: MessagesState):

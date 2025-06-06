@@ -1,63 +1,60 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from bs4 import BeautifulSoup
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from geopy.distance import geodesic
 import time
 import asyncio
 
-async def get_train_data(
-    source: str, 
-    destination: str, 
-    source_lat: float, 
-    source_lng: float, 
-    dest_lat: float, 
+def get_train_data(
+    source_code: str,
+    destination_code: str,
+    source_lat: float,
+    source_lng: float,
+    dest_lat: float,
     dest_lng: float
 ) -> list:
-    """Get comprehensive train schedule and fare information between two railway stations in India.
-    
-    This tool scrapes live train data from trainman.in to provide detailed information about available trains
-    including schedules, fares across different classes, estimated travel time, distance, and carbon emissions.
+    """
+    Get train schedule and fare info between two stations from Ixigo.
     
     Args:
-        source: Source railway station code (e.g., "new-delhi-ndls", "mumbai-central-mmct"). 
-                Use the URL-friendly station code format with hyphens and lowercase letters.
-        destination: Destination railway station code (e.g., "new-delhi-ndls", "mumbai-central-mmct").
-                    Use the URL-friendly station code format with hyphens and lowercase letters.
-        source_lat: Latitude coordinate of the source railway station (decimal degrees, e.g., 28.6422)
-        source_lng: Longitude coordinate of the source railway station (decimal degrees, e.g., 77.2195)
-        dest_lat: Latitude coordinate of the destination railway station (decimal degrees, e.g., 18.9696)
-        dest_lng: Longitude coordinate of the destination railway station (decimal degrees, e.g., 72.8195)
-    
+        source_code: Station code like 'PUNE'
+        destination_code: Station code like 'NDLS'
+        source_lat, source_lng: Source coordinates
+        dest_lat, dest_lng: Destination coordinates
+        
     Returns:
-        A list of dictionaries, each containing train information with the following keys:
-        - train_name: Name of the train (string)
-        - train_number: Official train number (string)
-        - expected_time: Journey duration in hours and minutes (string)
-        - price: Dictionary with class names as keys and fare prices as values
-        - distance_km: Distance between stations in kilometers (float)
-        - estimated_emission_kg: Estimated CO2 emissions in kilograms (float)
+        List of train data with name, number, duration, fares, distance, and CO2 emission.
     """
-
-    print("Executing railways tool") 
-    # print({source, destination, source_lat, source_lng, dest_lat, dest_lng})
+    date = (datetime.now() + timedelta(days=20)).strftime("%d%m%Y")
+    url = f"https://www.ixigo.com/search/result/train/{source_code}/{destination_code}/{date}//1/0/0/0/ALL"
     
-    date = (datetime.now() + timedelta(days=7)).strftime("%d-%m-%Y")
-    url = f"https://www.trainman.in/trains/{source}/{destination}?date={date}&class=ALL&quota=GN&fcs_opt=false"
-    print(url)
-
     options = Options()
-    options.add_argument('--start-maximized')  # Browser maximized
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    options.add_argument('--start-maximized')
+    # options.add_argument('--headless=new')
+    # options.add_argument('--no-sandbox')
+    # options.add_argument('--disable-dev-shm-usage')
+
+    driver = webdriver.Chrome(options=options)
     driver.get(url)
+    time.sleep(2)
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(5)
 
-    time.sleep(5)  # Wait for page load
+    try:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, 'train-listing-row'))
+        )
+    except Exception as e:
+        print("❌ Train data not loaded:", e)
+        driver.quit()
+        return []
 
-    elems = driver.find_elements(By.CLASS_NAME, 'train-item-container')
-    print(f"{len(elems)} trains found between {source} and {destination}.")
+    elems = driver.find_elements(By.CLASS_NAME, 'train-listing-row')
+    print(f"{len(elems)} trains found.")
 
     result = []
     for elem in elems:
@@ -66,63 +63,57 @@ async def get_train_data(
 
         content = {}
 
-        train_name = soup.find('span', attrs={'class': 'short-name'})
-        content['train_name'] = train_name.get_text(strip=True) if train_name else None
+        name_tag = soup.find('span', class_='train-name')
+        num_tag = soup.find('span', class_='train-number')
+        time_tag = soup.find('div', class_='c-timeline-wrapper')
 
-        train_number_div = soup.find('div', attrs={'class': 'train-route'})
-        train_number = train_number_div.find(string=True, recursive=False).strip() if train_number_div else None
-        content['train_number'] = train_number
-
-        time_tag = soup.find('span', attrs={'class': 'duration-time'})
+        content['train_name'] = name_tag.get_text(strip=True) if name_tag else None
+        content['train_number'] = num_tag.get_text(strip=True) if num_tag else None
         content['expected_time'] = time_tag.get_text(strip=True) if time_tag else None
 
         fares = {}
-        classes = soup.find_all('div', attrs={'class': 'class'})
-        fares_html = soup.find_all('div', attrs={'class': 'fare'})
+        classes = soup.find_all('span', class_='train-class')
+        prices = soup.find_all('div', class_='c-price-display')
 
-        for cls, fare in zip(classes, fares_html):
-            fares[cls.get_text(strip=True)] = fare.get_text(strip=True)
+        for cls, price in zip(classes, prices):
+            fares[cls.get_text(strip=True)] = price.get_text(strip=True)
 
         content['price'] = fares
 
-        # Distance and Emissions
-        source_coords = (source_lat, source_lng)
-        dest_coords = (dest_lat, dest_lng)
-        
-        dist = geodesic(source_coords, dest_coords).km
-        emission = round(dist * 0.041, 2)  # kg CO₂ per km for train travel
+        # Distance & Emission
+        dist_km = round(geodesic((source_lat, source_lng), (dest_lat, dest_lng)).km, 2)
+        co2_emission = round(dist_km * 0.041, 2)
 
-        content['distance_km'] = round(dist, 2)
-        content['estimated_emission_kg'] = emission
+        content['distance_km'] = dist_km
+        content['estimated_emission_kg'] = co2_emission
 
         result.append(content)
+
+        if len(result) >= 3:  # limit results for speed
+            break
 
     driver.quit()
     return result
 
 def get_railways_route_info(
-        source: str, 
-    destination: str, 
-    source_lat: float, 
-    source_lng: float, 
-    dest_lat: float, 
+    source_code: str,
+    destination_code: str,
+    source_lat: float,
+    source_lng: float,
+    dest_lat: float,
     dest_lng: float
 ) -> list:
-    """Get comprehensive train schedule and fare information between two railway stations in India.
-    
-    This tool scrapes live train data from trainman.in to provide detailed information about available trains
-    including schedules, fares across different classes, estimated travel time, distance, and carbon emissions.
+    """
+    Get train schedule and fare info between two stations from Ixigo.
     
     Args:
-        source: Source railway station code (e.g., "new-delhi-ndls", "mumbai-central-mmct"). 
-                Use the URL-friendly station code format with hyphens and lowercase letters.
-        destination: Destination railway station code (e.g., "new-delhi-ndls", "mumbai-central-mmct").
-                    Use the URL-friendly station code format with hyphens and lowercase letters.
-        source_lat: Latitude coordinate of the source railway station (decimal degrees, e.g., 28.6422)
-        source_lng: Longitude coordinate of the source railway station (decimal degrees, e.g., 77.2195)
-        dest_lat: Latitude coordinate of the destination railway station (decimal degrees, e.g., 18.9696)
-        dest_lng: Longitude coordinate of the destination railway station (decimal degrees, e.g., 72.8195)
-    
+        source_code: Station code like 'PUNE'
+        destination_code: Station code like 'NDLS'
+        source_lat: Source latitude
+        source_lng: Source longitude
+        dest_lat: Destination Latitude
+        dest_lng: Destination longitude
+
     Returns:
         A list of dictionaries, each containing train information with the following keys:
         - train_name: Name of the train (string)
@@ -132,4 +123,16 @@ def get_railways_route_info(
         - distance_km: Distance between stations in kilometers (float)
         - estimated_emission_kg: Estimated CO2 emissions in kilograms (float)
     """
-    asyncio.run(get_train_data(source, destination, source_lat, source_lng, dest_lat, dest_lng))
+    asyncio.run(get_train_data(source_code, destination_code, source_lat, source_lng, dest_lat, dest_lng))
+
+if __name__ == '__main__':
+    print("test")
+    result = get_railways_route_info(
+        source_code="PUNE",
+        destination_code="NDLS",
+        source_lat=18.5286,
+        source_lng=73.8743,
+        dest_lat=28.6448,
+        dest_lng=77.2167
+    )
+    print(result)

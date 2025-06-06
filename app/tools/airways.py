@@ -1,6 +1,8 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from geopy.distance import geodesic
@@ -53,11 +55,23 @@ def get_airways_route_info(
 
     options = Options()
     options.add_argument('--start-maximized')
+    # options.add_argument('--no-sandbox')
+    # options.add_argument('--disable-dev-shm-usage')
+    # options.add_argument('--headless=new')
+    # options.add_argument("--disable-blink-features=AutomationControlled")
+    # options.add_experimental_option("excludeSwitches", ["enable-automation"])
 
     driver = webdriver.Chrome(options=options)
     driver.get(url)
 
-    time.sleep(15)  # Wait for content to load
+    try:
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, 'Fxw9-result-item-container'))
+        )
+    except Exception as e:
+        print("Timeout waiting for flights to load:", e)
+        driver.quit()
+        return []
 
     elems = driver.find_elements(By.CLASS_NAME, 'Fxw9-result-item-container')
     print(f"{len(elems)} flight items found")
@@ -92,6 +106,13 @@ def get_airways_route_info(
         content['carbon_emission_kg'] = emission
 
         results.append(content)
+        if len(results) > 3:
+            break
 
     driver.quit()
     return results
+
+if __name__ == "__main__":
+    result = get_airways_route_info("DEL", "BOM", 0, 0, 0, 0);
+    print(len(result))
+    print(result)

@@ -10,3 +10,7 @@ class ProductInput(BaseModel):
 class OptimizeRoute(BaseModel):
     source: str
     destination: str
+
+class BotSchema(BaseModel):
+    chat_id: str
+    prompt: str
