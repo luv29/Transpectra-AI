@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: uv-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: ./start.sh
+    autoDeploy: true
+    region: oregon
