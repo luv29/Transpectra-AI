@@ -22,7 +22,7 @@ async def bot(query: BotSchema):
             Your tone must be polite and helpful. The user should be satisfied by your answer. You can ask the user follow up questions, to make your response evenn better?
 
             You may use the tools that you have access to, only when required.
-            Ensure whenever you return response it should only contain plain text, no markdown, no html just plain text""", role="system"),
+            Give Beautiful Response, you may give response in markdown format""", role="system"),
             HumanMessage(content=query.prompt, role="user")]
         output = await bot.ainvoke({"messages": messages}, config)
         
